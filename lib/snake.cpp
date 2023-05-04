@@ -1,38 +1,37 @@
 #include "snake.h"
+#include "main.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 static point_t snake[SNAKE_MAX_LENGTH];
 static int snake_length = SNAKE_INITIAL_LENGTH;
-static direction_t snake_direction = DIR_NONE;
+static direction_t snake_direction = DIR_RIGHT;
 static int score = 0;
 
 static point_t food = {0, 0};
 
 static void generate_food(void)
 {
-    // food.x = rand() % SNAKE_WIDTH;
-    // food.y = rand() % SNAKE_HEIGHT;
+    food.x = rand() % SNAKE_WIDTH;
+    food.y = rand() % SNAKE_HEIGHT;
 }
 
 static direction_t get_direction(void)
 {
-    //! TODO
-    return DIR_NONE;
-}
-
-static void draw_pixel(int x, int y, color_t color)
-{
-    int i, j;
-
-    for (i = 0; i < SNAKE_PIXEL_SIZE; i++)
+    // button 1: left; button 2: right
+    if (button1 == 0)
     {
-        for (j = 0; j < SNAKE_PIXEL_SIZE; j++)
-        {
-            // lcd_draw_pixel(x + i, y + j, color);
-        }
+        return direction_t((snake_direction - 1 + 4) % 4);
     }
+    return snake_direction;
 }
 
-static void draw_rect(int x, int y, int width, int height, color_t color)
+static void draw_pixel(int x, int y)
+{
+    lcd.setPixel(x, y, true);
+}
+
+static void draw_rect(int x, int y, int width, int height)
 {
     int i, j;
 
@@ -40,7 +39,7 @@ static void draw_rect(int x, int y, int width, int height, color_t color)
     {
         for (j = 0; j < height; j++)
         {
-            draw_pixel(x + i, y + j, color);
+            draw_pixel(x + i, y + j);
         }
     }
 }
@@ -52,28 +51,26 @@ void snake_init(void)
 
     for (i = 0; i < SNAKE_MAX_LENGTH; i++)
     {
-        snake[i].x = 0;
-        snake[i].y = 0;
+        snake[i].x = -1;
+        snake[i].y = -1;
     }
 
-    snake[0].x = SNAKE_WIDTH / 2;
-    snake[0].y = SNAKE_HEIGHT / 2;
+    for (i = 0; i < SNAKE_INITIAL_LENGTH; i++)
+    {
+        snake[i].x = SNAKE_WIDTH / 2 - i;
+        snake[i].y = SNAKE_HEIGHT / 2;
+    }
 
-    snake_direction = DIR_NONE;
+    snake_direction = DIR_RIGHT;
 
     score = 0;
 
     generate_food();
 }
 
-void snake_move(void)
+static void snake_move(void)
 {
     int i;
-
-    if (snake_direction == DIR_NONE)
-    {
-        return;
-    }
 
     for (i = snake_length - 1; i > 0; i--)
     {
@@ -112,36 +109,41 @@ void snake_move(void)
     }
 }
 
-void snake_draw(void)
+static void snake_draw(void)
 {
     int i;
 
     for (i = 0; i < snake_length; i++)
     {
-        draw_rect(snake[i].x * (SNAKE_PIXEL_SIZE + SNAKE_PIXEL_MARGIN),
-                  snake[i].y * (SNAKE_PIXEL_SIZE + SNAKE_PIXEL_MARGIN),
-                  SNAKE_PIXEL_SIZE, SNAKE_PIXEL_SIZE, WHITE);
+        draw_rect(snake[i].x * (SNAKE_PIXEL_SIZE),
+                  snake[i].y * (SNAKE_PIXEL_SIZE),
+                  SNAKE_PIXEL_SIZE, SNAKE_PIXEL_SIZE);
     }
 
-    draw_rect(food.x * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN),
-              food.y * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN),
-              FOOD_PIXEL_SIZE, FOOD_PIXEL_SIZE, RED);
+    draw_rect(food.x * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN*2) + FOOD_PIXEL_MARGIN,
+              food.y * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN*2) + FOOD_PIXEL_MARGIN,
+              FOOD_PIXEL_SIZE, FOOD_PIXEL_SIZE);
 }
 
-void snake_clear(void)
+static bool is_game_over(void)
 {
     int i;
 
-    for (i = 0; i < snake_length; i++)
+    if (snake[0].x < 0 || snake[0].x >= SNAKE_WIDTH ||
+        snake[0].y < 0 || snake[0].y >= SNAKE_HEIGHT)
     {
-        draw_rect(snake[i].x * (SNAKE_PIXEL_SIZE + SNAKE_PIXEL_MARGIN),
-                  snake[i].y * (SNAKE_PIXEL_SIZE + SNAKE_PIXEL_MARGIN),
-                  SNAKE_PIXEL_SIZE, SNAKE_PIXEL_SIZE, BLACK);
+        return true;
     }
 
-    draw_rect(food.x * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN),
-              food.y * (FOOD_PIXEL_SIZE + FOOD_PIXEL_MARGIN),
-              FOOD_PIXEL_SIZE, FOOD_PIXEL_SIZE, BLACK);
+    for (i = 1; i < snake_length; i++)
+    {
+        if (snake[0].x == snake[i].x && snake[0].y == snake[i].y)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int snake_get_score(void)
@@ -149,47 +151,46 @@ int snake_get_score(void)
     return score;
 }
 
-void snake_set_direction(direction_t direction)
+static void snake_set_direction(direction_t direction)
 {
     snake_direction = direction;
 }
 
-void snake_game_loop(unsigned delay)
+void snake_game_loop(unsigned frame_delay_ms)
 {
-    // int i;
-    // direction_t direction;
+    int i;
+    direction_t direction;
 
-    // srand(time(NULL));
+    srand(time(NULL));
 
-    // init_graphics();
+    snake_init();
 
-    // snake_init();
+    while (1)
+    {
+        lcd.clear();
 
-    // while (1)
-    // {
-    //     clear_screen();
+        direction = get_direction();
 
-    //     direction = get_direction();
+        snake_set_direction(direction);
 
-    //     snake_set_direction(direction);
+        snake_move();
 
-    //     snake_move();
+        snake_draw();
 
-    //     snake_draw();
+        lcd.refresh();
 
-    //     update_screen();
+        thread_sleep_for(frame_delay_ms);
 
-    //     HAL_Delay(delay);
+        if (is_game_over())
+        {
+            break;
+        }
+    }
 
-    //     if (is_game_over())
-    //     {
-    //         break;
-    //     }
-    // }
+    lcd.clear();
 
-    // clear_screen();
-
-    // printf("Game over! Your score is: %d\n", snake_get_score());
-
-    // close_graphics();
+    char buf[50];
+    sprintf(buf, "Game over! Your score is: %d\n", snake_get_score());
+    lcd.printString(buf, 0, 0);
+    lcd.refresh();
 }
