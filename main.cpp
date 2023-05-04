@@ -5,11 +5,13 @@
 
 #include "main.h"
 #include "snake.h"
+#include "home.h"
 
 #define WAIT_TIME_MS 500 
 DigitalOut led1(LED1);
 DigitalIn button1(BUTTON1);
 N5110 lcd(ARDUINO_UNO_D8, ARDUINO_UNO_D4, ARDUINO_UNO_D7, ARDUINO_UNO_D11, ARDUINO_UNO_D13, ARDUINO_UNO_D6);
+Joystick joystick(PC_3, PC_2);
 
 int main()
 {
@@ -17,15 +19,26 @@ int main()
     lcd.setContrast(0.4);
     lcd.printString("Hello world!", 0, 0);
     lcd.refresh();
+    joystick.init();
 
-    thread_sleep_for(3000);
+    thread_sleep_for(500);
+    joystick.init();
 
-    snake_game_loop(1000);
-    // printf("This is the bare metal blinky example running on Mbed OS %d.%d.%d.\n", MBED_MAJOR_VERSION, MBED_MINOR_VERSION, MBED_PATCH_VERSION);
+    home_loop(200);
+    printf("This is the bare metal blinky example running on Mbed OS %d.%d.%d.\n", MBED_MAJOR_VERSION, MBED_MINOR_VERSION, MBED_PATCH_VERSION);
 
-    // while (true)
-    // {
-    //     led1 = !led1;
-    //     thread_sleep_for(WAIT_TIME_MS);
-    // }
+    while (true)
+    {
+    
+        Vector2D coord = joystick.get_coord();
+        printf("Coord = %f,%f\n", coord.x, coord.y);
+
+        float mag = joystick.get_mag();
+        float angle = joystick.get_angle();
+        printf("Mag = %f Angle = %f\n", mag, angle);
+        
+        Direction d = joystick.get_direction();
+        printf("Direction = %i\n",d);
+        thread_sleep_for(WAIT_TIME_MS);
+    }
 }
