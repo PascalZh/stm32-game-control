@@ -8,8 +8,8 @@
 #include "main.h"
 
 #define SCREEN_WIDTH WIDTH
-#define SCREEN_HEIGHT (HEIGHT - 7)
-#define CANVAS_Y0 7
+#define SCREEN_HEIGHT (HEIGHT - 8)
+#define CANVAS_Y0 8
 
 // 定义游戏元素的结构体
 typedef struct {
@@ -35,8 +35,8 @@ typedef enum { MOVE_LEFT, MOVE_RIGHT, MOVE_NONE } Movement;
 void init_game(Rect *bricks, Rect *paddle, Circle *ball) {
   // 初始化砖块
   for (int i = 0; i < BRICK_NUM; i++) {
-    bricks[i].x = i * BRICK_WIDTH;
-    bricks[i].y = 0;
+    bricks[i].x = (i % 8) * BRICK_WIDTH;
+    bricks[i].y = (i / 8) * BRICK_HEIGHT;
     bricks[i].w = BRICK_WIDTH;
     bricks[i].h = BRICK_HEIGHT;
   }
@@ -53,14 +53,24 @@ void init_game(Rect *bricks, Rect *paddle, Circle *ball) {
   ball->vy = BALL_SPEED;
 }
 
-// 检测两个矩形是否相交
-bool is_intersect(Rect *rect1, Rect *rect2) {
-  return (rect1->x < rect2->x + rect2->w && rect1->x + rect1->w > rect2->x &&
-          rect1->y < rect2->y + rect2->h && rect1->y + rect1->h > rect2->y);
+bool is_intersect(Circle *ball, Rect *rect) {
+  // 矩形的中心点
+  int cx = rect->x + rect->w / 2;
+  int cy = rect->y + rect->h / 2;
+  // 小球与矩形中心点的距离
+  int dx = abs(ball->x - cx);
+  int dy = abs(ball->y - cy);
+  // 小球与矩形中心点的距离小于矩形的宽度和高度的一半，说明小球与矩形相交
+  if (dx <= rect->w / 2 + ball->r && dy <= rect->h / 2 + ball->r) {
+    return true;
+  }
+  return false;
 }
 
 Movement get_movement() {
-  if (button1 == 0) {
+  if (joystick.get_direction() == E) {
+    return MOVE_RIGHT;
+  } else if (joystick.get_direction() == W) {
     return MOVE_LEFT;
   } else {
     return MOVE_NONE;
@@ -83,6 +93,7 @@ void update_paddle(Rect *paddle, Movement movement) {
 // 更新球的位置
 void update_ball(Circle *ball, Rect *paddle, Rect *bricks, int *score,
                  GameState *state) {
+  static int last_paddle_x = 0;
   // 根据小球的速度和方向，计算小球的新位置
   ball->x += ball->vx;
   ball->y += ball->vy;
@@ -99,23 +110,37 @@ void update_ball(Circle *ball, Rect *paddle, Rect *bricks, int *score,
   }
 
   // 检测小球是否撞到挡板
-  if (is_intersect((Rect *)ball, paddle)) {
+  if (is_intersect(ball, paddle)) {
     ball->vy = -ball->vy;
-    // 根据小球与挡板的相对位置，调整小球的反弹方向和速度
-    int dist = ball->x - (paddle->x + paddle->w / 2);
-    ball->vx = dist * 0.2;
+    // 根据小球与挡板的相对速度和摩擦
+    int v_paddle = paddle->x - last_paddle_x;
+    if (v_paddle > 0) {
+      ball->vx += 1;
+    } else if (v_paddle < 0) {
+      ball->vx -= 1;
+    }
+    if (ball->vx > 3) {
+      ball->vx = 3;
+    }
+    if (ball->vx < -3) {
+      ball->vx = -3;
+    }
   }
 
   // 检测小球是否撞到砖块
   for (int i = 0; i < BRICK_NUM; i++) {
-    if (bricks[i].w > 0 && is_intersect((Rect *)ball, &bricks[i])) {
+    if (bricks[i].w > 0 && is_intersect(ball, &bricks[i])) {
       bricks[i].w = 0;
       bricks[i].h = 0;
       *score += 1;
-      ball->vy = -ball->vy;
-      // 根据小球与砖块的相对位置，调整小球的反弹方向和速度
-      int dist = ball->x - (bricks[i].x + bricks[i].w / 2);
-      ball->vx = dist * 0.2;
+
+      int dx = ball->x - (bricks[i].x + bricks[i].w / 2);
+      int dy = ball->y - (bricks[i].y + bricks[i].h / 2);
+      if (abs(dx) > abs(dy) * BRICK_WIDTH / BRICK_HEIGHT && dx * ball->vx < 0) {  // dx * ball->vx < 0 is important!
+        ball->vx = -ball->vx;
+      } else {
+        ball->vy = -ball->vy;
+      }
       // 如果所有砖块都被打掉了，游戏胜利
       bool win = true;
       for (int j = 0; j < BRICK_NUM; j++) {
@@ -127,17 +152,21 @@ void update_ball(Circle *ball, Rect *paddle, Rect *bricks, int *score,
       if (win) {
         *state = GAME_OVER;
       }
+      break;
     }
   }
+
+  last_paddle_x = paddle->x;
 }
 
 // 绘制游戏界面
 void draw_game(Rect *bricks, Rect *paddle, Circle *ball, int score) {
+  lcd.clear();
   // 绘制砖块
   for (int i = 0; i < BRICK_NUM; i++) {
     if (bricks[i].w > 0) {
-      lcd.drawRect(bricks[i].x, bricks[i].y + CANVAS_Y0, bricks[i].w,
-                   bricks[i].h, FILL_BLACK);
+      lcd.drawRect(bricks[i].x + 1, bricks[i].y + 1 + CANVAS_Y0,
+                   bricks[i].w - 1, bricks[i].h - 1, FILL_BLACK);
     }
   }
 
@@ -153,9 +182,10 @@ void draw_game(Rect *bricks, Rect *paddle, Circle *ball, int score) {
   sprintf(score_text, "Score: %d", score);
   lcd.printString(score_text, 0, 0);
 
+  lcd.refresh();
 }
 
-void breakout_game_loop(unsigned frame_delay_ms) {
+void breakout_game_loop(unsigned delay) {
   Rect bricks[BRICK_NUM];
   Rect paddle;
   Circle ball;
@@ -165,13 +195,14 @@ void breakout_game_loop(unsigned frame_delay_ms) {
   init_game(bricks, &paddle, &ball);
 
   while (state != GAME_OVER) {
-    lcd.clear();
     if (state == GAME_START) {
-      lcd.printString("Press any key to start", 0, 0);
+      lcd.clear();
+      lcd.printString("Move joystick", 0, 0);
+      lcd.printString("to start...", 0, 1);
       lcd.refresh();
 
       // 等待用户按下按键
-      while (button1 == 1){
+      while (joystick.get_direction() == CENTRE) {
         thread_sleep_for(10);
       }
       state = GAME_RUNNING;
@@ -187,15 +218,16 @@ void breakout_game_loop(unsigned frame_delay_ms) {
     // 绘制游戏界面
     draw_game(bricks, &paddle, &ball, score);
 
-    lcd.refresh();
-
     // 延时
-    thread_sleep_for(frame_delay_ms);
+    thread_sleep_for(delay);
 
+    if (state == GAME_OVER) {
+      break;
+    }
   }
 
   lcd.clear();
-  lcd.printString("Game Over", 0, 0);
+  lcd.printString("Game Over!", 13, 3);
   lcd.refresh();
-  thread_sleep_for(1000);
+  thread_sleep_for(500);
 }

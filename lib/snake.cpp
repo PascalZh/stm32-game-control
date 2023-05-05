@@ -188,4 +188,7 @@ void snake_game_loop(unsigned delay) {
   while (joystick.get_direction() == CENTRE) {
     thread_sleep_for(delay);
   }
+  lcd.clear();
+  lcd.refresh();
+  thread_sleep_for(500);
 }

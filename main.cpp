@@ -15,8 +15,8 @@ Joystick joystick(PC_3, PC_2);
 
 int main()
 {
-    lcd.init(LPH7366_1);
-    lcd.setContrast(0.4);
+    lcd.init(LPH7366_6);
+    lcd.setContrast(0.6);
     lcd.printString("Hello world!", 0, 0);
     lcd.refresh();
     joystick.init();
@@ -24,7 +24,7 @@ int main()
     thread_sleep_for(500);
     joystick.init();
 
-    home_loop(200);
+    home_loop(100);
     printf("This is the bare metal blinky example running on Mbed OS %d.%d.%d.\n", MBED_MAJOR_VERSION, MBED_MINOR_VERSION, MBED_PATCH_VERSION);
 
     while (true)

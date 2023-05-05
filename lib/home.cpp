@@ -38,7 +38,7 @@ void home_loop(unsigned delay)
     {
         if (joystick.get_direction() != CENTRE)
         {
-            thread_sleep_for(delay * 2);  // delay consecutive joystick.get_direction() call in options_loop
+            thread_sleep_for(500);  // delay consecutive joystick.get_direction() call in options_loop
             options_loop(delay);
 
             // when options_loop exit, show the home screen again
@@ -53,11 +53,22 @@ static void draw_options(char** options, int num_options, int selected_option)
     lcd.clear();
     const unsigned indent_width = 10;
 
+    int base_idx;
+
+    if (selected_option < BANKS) {
+        base_idx = 0;
+    } else if (selected_option >= num_options - BANKS) {
+        base_idx = num_options - BANKS;
+    } else {
+        base_idx = selected_option - BANKS / 2;
+    }
+
     for (int i = 0; i < BANKS; i++)
     {
-        if (i < num_options) {
-            lcd.printString(options[i], indent_width, i);
-            if (i == selected_option)
+        int idx = i + base_idx;
+        if (idx < num_options) {
+            lcd.printString(options[idx], indent_width, i);
+            if (idx == selected_option)
             {
                 lcd.printString(">", 0, i);
                 lcd.printString("<", WIDTH-5, i);
@@ -75,24 +86,29 @@ static void options_loop(unsigned delay)
         "1. Snake",
         "2. Breakout",
         "3. Settings",
-        "4. Quit"
+        "4. Quit",
+        "5. Test",
+        "6. Test",
+        "7. Test",
+        "8. Test"
     };
+    static const int num_options = sizeof(options) / sizeof(options[0]);
     int selected_option = 0;
 
     while (true)
     {
         // 1. show the options
-        draw_options(options, 4, selected_option);
+        draw_options(options, num_options, selected_option);
 
         // 2. wait for user input
         if (joystick.get_direction() == N) {
-            thread_sleep_for(delay);
-            selected_option = (selected_option - 1 + 4) % 4;
+            thread_sleep_for(200);
+            selected_option = (selected_option - 1 + num_options) % num_options;
         } else if (joystick.get_direction() == S) {
-            thread_sleep_for(delay);
-            selected_option = (selected_option + 1) % 4;
+            thread_sleep_for(200);
+            selected_option = (selected_option + 1) % num_options;
         } else if (joystick.get_direction() == E) {
-            thread_sleep_for(delay * 2);
+            thread_sleep_for(500);
             switch (selected_option)
             {
                 case 0:
